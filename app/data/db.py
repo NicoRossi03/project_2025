@@ -9,7 +9,6 @@ from app.models.registration import Registration  # NOQA
 from app.models.user import User  # NOQA
 from app.models.event import Event  # NOQA
 
-
 sqlite_file_name = config.root_dir / "data/database.db"
 sqlite_url = f"sqlite:///{sqlite_file_name}"
 connect_args = {"check_same_thread": False}
