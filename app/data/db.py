@@ -7,8 +7,6 @@ from app.config import config
 # TODO: remember to import all the DB models here
 from app.models.registration import Registration  # NOQA
 
-#ciao
-
 sqlite_file_name = config.root_dir / "data/database.db"
 sqlite_url = f"sqlite:///{sqlite_file_name}"
 connect_args = {"check_same_thread": False}
