@@ -3,9 +3,10 @@ from sqlmodel import SQLModel, Field
 
 
 class EventBase(SQLModel):
-    description: str
-    location: str
-    date: datetime
+    title: str = Field(min_length=3, nullable=False)
+    description: str = Field(min_length=3, nullable=False)
+    location: str = Field(min_length=3, nullable=False)
+    date: datetime = Field(nullable=False)
 
 class EventCreate(EventBase):
     pass
