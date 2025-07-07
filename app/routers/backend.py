@@ -1,17 +1,20 @@
+from typing import Annotated
+
 from http.client import HTTPException
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, Depends
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
-from sqlmodel import select
+from sqlmodel import select, Session
 from sqlalchemy import delete
 
 from app.config import config
-from app.data.db import SessionDep
+from app.data.db import get_session
 from app.models.event import Event, EventCreate
 
 router = APIRouter()
 templates = Jinja2Templates(directory=config.root_dir / "templates")
+SessionDep = Annotated[Session, Depends(get_session)]
 
 @router.get("/events")
 async def get_all_events(session: SessionDep):
