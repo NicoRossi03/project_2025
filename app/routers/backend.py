@@ -110,9 +110,9 @@ async def add_registration(session: SessionDep, data: UserPublic, event_id: int)
         )
         session.commit()
     except ValidationError:
-        raise HTTPException(status_code=400, detail={"ok": False, "message": "invalid payload format"})
+        raise HTTPException(status_code=400, detail="Invalid payload format")
     except Exception as e:
-        raise HTTPException(status_code=404, detail={"ok": False, "message": "user not found"})
+        raise HTTPException(status_code=404, detail="User not found")
     else:
         return "Registration added successfully"
 
