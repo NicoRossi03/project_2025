@@ -82,11 +82,13 @@ async def add_event(session: SessionDep, data: EventCreate, id: int) -> str:
     except ValidationError:
         raise HTTPException(status_code=400, detail="Invalid payload format")
 
+    # Update event data
     event.title = new_event_data.title
     event.description = new_event_data.description
     event.location = new_event_data.location
     event.date = new_event_data.date
 
+    # Update record
     session.add(event)
     session.commit()
     return "Event updated successfully"
@@ -105,7 +107,7 @@ async def delete_event_by_id(session: SessionDep, id: int) -> str:
     if res.rowcount > 0:
         return "Event deleted successfully"
     else:
-        raise HTTPException(status_code=404, detail={"ok": False, "message": "Event not found"})
+        raise HTTPException(status_code=404, detail="Event not found")
 
 @router.post("/events/{event_id}/register")
 async def add_registration(session: SessionDep, data: UserPublic, event_id: int) -> str:
