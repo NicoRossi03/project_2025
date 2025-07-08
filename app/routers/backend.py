@@ -21,7 +21,10 @@ async def get_all_users(session: SessionDep) -> list[UserPublic]:
 
 @router.post("/users")
 async def add_user(session: SessionDep, data: UserCreate) -> str:
-    session.add(User.model_validate(data))
+    try:
+        session.add(User.model_validate(data))
+    except ValidationError:
+        raise HTTPException(status_code=400, detail="Invalid payload format")
     session.commit()
     return "User added successfully"
 
@@ -53,7 +56,10 @@ async def get_all_events(session: SessionDep) -> list[Event]:
 
 @router.post("/events")
 async def add_event(session: SessionDep, data: EventCreate) -> str:
-    session.add(Event.model_validate(data))
+    try:
+        session.add(Event.model_validate(data))
+    except ValidationError:
+        raise HTTPException(status_code=400, detail="Invalid payload format")
     session.commit()
     return "Event added successfully"
 
@@ -71,7 +77,10 @@ async def add_event(session: SessionDep, data: EventCreate, id: int) -> str:
     if event is None:
         raise HTTPException(status_code=404, detail="Event not found")
 
-    new_event_data = Event.model_validate(data)
+    try:
+        new_event_data = Event.model_validate(data)
+    except ValidationError:
+        raise HTTPException(status_code=400, detail="Invalid payload format")
 
     event.title = new_event_data.title
     event.description = new_event_data.description
@@ -87,9 +96,6 @@ async def delete_all_events(session: SessionDep) -> str:
     session.exec(delete(Event))
     session.commit()
     return "All events deleted successfully"
-
-
-
 
 
 @router.delete("/events/{id}")
