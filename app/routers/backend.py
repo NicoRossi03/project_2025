@@ -2,8 +2,7 @@ from typing import Annotated
 
 from http.client import HTTPException
 
-from fastapi import APIRouter, Request, Depends
-from fastapi.responses import HTMLResponse
+from fastapi import APIRouter, Depends
 from fastapi.templating import Jinja2Templates
 from pydantic import ValidationError
 from sqlmodel import select, Session
@@ -26,29 +25,29 @@ async def get_all_users(session: SessionDep):
 async def add_user(session: SessionDep, data: UserCreate):
     session.add(User.model_validate(data))
     session.commit()
-    return {"ok": True, "message": "User added"}
+    return "User added successfully"
 
 @router.get("/users/{username}")
 async def get_user_by_username(session: SessionDep, username: str):
     user = session.get(User, username)
     if user is None:
-        raise HTTPException(status_code=404, detail={"ok": False})
+        raise HTTPException(status_code=404, detail="User not found")
     else:
         return user
 @router.delete("/users")
 async def delete_all_users(session: SessionDep):
     session.exec(delete(User))
     session.commit()
-    return {"ok": True, "message": "Users deleted"}
+    return "All users deleted successfully"
 
 @router.delete("/users/{username}")
 async def delete_user_by_username(session: SessionDep, username: str):
     res = session.exec(delete(User).where(User.username == username))
     session.commit()
     if res.rowcount > 0:
-        return {"ok": True, "message": "User deleted"}
+        return "User deleted successfully"
     else:
-        raise HTTPException(status_code=404, detail={"ok": False, "message": "User not found"})
+        raise HTTPException(status_code=404, detail="User not found")
 
 @router.get("/events")
 async def get_all_events(session: SessionDep):
@@ -58,13 +57,13 @@ async def get_all_events(session: SessionDep):
 async def add_event(session: SessionDep, data: EventCreate):
     session.add(Event.model_validate(data))
     session.commit()
-    return {"ok": True, "message": "Event added"}
+    return "Event added successfully"
 
 @router.get("/events/{id}")
 async def get_event_by_id(session: SessionDep, id: int):
     event = session.get(Event, id)
     if event is None:
-        raise HTTPException(status_code=404, detail={"ok": False})
+        raise HTTPException(status_code=404, detail="Event not found")
     else:
         return event
 
@@ -72,7 +71,7 @@ async def get_event_by_id(session: SessionDep, id: int):
 async def add_event(session: SessionDep, data: EventCreate, id: int):
     event = session.get(Event, id)
     if event is None:
-        raise HTTPException(status_code=404, detail={"ok": False, "message": "Event not found"})
+        raise HTTPException(status_code=404, detail="Event not found")
 
     new_event_data = Event.model_validate(data)
 
@@ -83,13 +82,13 @@ async def add_event(session: SessionDep, data: EventCreate, id: int):
 
     session.add(event)
     session.commit()
-    return {"ok": True, "message": "Event updated"}
+    return "Event updated successfully"
 
 @router.delete("/events")
 async def delete_all_events(session: SessionDep):
     session.exec(delete(Event))
     session.commit()
-    return {"ok": True, "message": "Events deleted"}
+    return "All events deleted successfully"
 
 
 
@@ -100,7 +99,7 @@ async def delete_event_by_id(session: SessionDep, id: int):
     res = session.exec(delete(Event).where(Event.id == id))
     session.commit()
     if res.rowcount > 0:
-        return {"ok": True, "message": "Event deleted"}
+        return "Event deleted successfully"
     else:
         raise HTTPException(status_code=404, detail={"ok": False, "message": "Event not found"})
 
@@ -117,7 +116,7 @@ async def add_registration(session: SessionDep, data: UserPublic, event_id: int)
     except Exception as e:
         raise HTTPException(status_code=404, detail={"ok": False, "message": "user not found"})
     else:
-        return {"ok": True, "message": "Registration added"}
+        return "Registration added successfully"
 
 @router.get("/registrations")
 async def get_all_registrations(session: SessionDep):
@@ -128,6 +127,6 @@ async def delete_event_by_id(session: SessionDep, username: str, event_id: str):
     res = session.exec(delete(Registration).where(Registration.username == username, Registration.event_id == event_id))
     session.commit()
     if res.rowcount > 0:
-        return {"ok": True, "message": "Registration deleted"}
+        return "Registrations deleted successfully"
     else:
-        raise HTTPException(status_code=404, detail={"ok": False, "message": "Registration not found"})
+        raise HTTPException(status_code=404, detail="Registration not found")
