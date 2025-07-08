@@ -3,6 +3,7 @@ from http.client import HTTPException
 from fastapi import APIRouter, Depends
 from fastapi.templating import Jinja2Templates
 from pydantic import ValidationError
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import select, Session
 from sqlalchemy import delete
 from app.config import config
@@ -16,39 +17,81 @@ templates = Jinja2Templates(directory=config.root_dir / "templates")
 SessionDep = Annotated[Session, Depends(get_session)]
 
 @router.get("/users")
-async def get_all_users(session: SessionDep) -> list[UserPublic]:
+async def get_all_users(
+        session: SessionDep
+) -> list[UserPublic]:
     return session.exec(select(User)).all()
 
-@router.post("/users")
-async def add_user(session: SessionDep, data: UserCreate) -> str:
-    try:
-        session.add(User.model_validate(data))
-    except ValidationError:
-        raise HTTPException(status_code=400, detail="Invalid payload format")
-    session.commit()
-    return "User added successfully"
-
 @router.get("/users/{username}")
-async def get_user_by_username(session: SessionDep, username: str) -> UserPublic:
+async def get_user_by_username(
+        session: SessionDep,
+        username: str
+) -> UserPublic:
+
     user = session.get(User, username)
     if user is None:
-        raise HTTPException(status_code=404, detail="User not found")
-    else:
-        return user
+        raise HTTPException(
+            status_code=404,
+            detail="User not found"
+        )
+    return user
+
+@router.post("/users")
+async def add_user(
+    session: SessionDep,
+    data: UserCreate
+) -> str:
+    """
+    We don't really need to handle ValidationError(s) here
+    because as long as a valid UserCreate payload is provided
+    (and pydantic takes care of validating that) we shouldn't
+    ever get an error from the following statement.
+
+    We really care about the outcome of the transaction though,
+    as that can generate errors (e.g. duplicate primary key)
+    """
+    session.add(User.model_validate(data))
+
+    try:
+        session.commit()
+    except ValidationError:
+        raise HTTPException(
+            status_code=400,
+            detail="Couldn't add user"
+        )
+
+    return "User added successfully"
+
 @router.delete("/users")
 async def delete_all_users(session: SessionDep) -> str:
+    # This is a very destructive operation!
     session.exec(delete(User))
     session.commit()
     return "All users deleted successfully"
 
 @router.delete("/users/{username}")
-async def delete_user_by_username(session: SessionDep, username: str) -> str:
-    res = session.exec(delete(User).where(User.username == username))
+async def delete_user_by_username(
+        session: SessionDep,
+        username: str
+) -> str:
+    """
+    DELETEs won't cause any error, no need to handle
+    that (though we might want to have a global exception
+    handler for DB connection-related errors)
+    """
+    result = session.exec(
+        delete(User)
+            .where(User.username == username)
+    )
     session.commit()
-    if res.rowcount > 0:
+    # Check whether a row has actually been deleted
+    if result.rowcount > 0:
         return "User deleted successfully"
     else:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(
+            status_code=404,
+            detail="User not found"
+        )
 
 @router.get("/events")
 async def get_all_events(session: SessionDep) -> list[Event]:
@@ -64,12 +107,18 @@ async def add_event(session: SessionDep, data: EventCreate) -> str:
     return "Event added successfully"
 
 @router.get("/events/{id}")
-async def get_event_by_id(session: SessionDep, id: int) -> Event:
+async def get_event_by_id(
+        session: SessionDep,
+        id: int
+) -> Event:
+
     event = session.get(Event, id)
     if event is None:
-        raise HTTPException(status_code=404, detail="Event not found")
-    else:
-        return event
+        raise HTTPException(
+            status_code=404,
+            detail="Event not found"
+        )
+    return event
 
 @router.put("/events/{id}")
 async def add_event(session: SessionDep, data: EventCreate, id: int) -> str:
@@ -100,39 +149,73 @@ async def delete_all_events(session: SessionDep) -> str:
     return "All events deleted successfully"
 
 
-@router.delete("/events/{id}")
-async def delete_event_by_id(session: SessionDep, id: int) -> str:
-    res = session.exec(delete(Event).where(Event.id == id))
+@router.delete("/events/{event_id}")
+async def delete_event_by_id(
+        session: SessionDep,
+        event_id: int
+) -> str:
+    result = session.exec(
+        delete(Event)
+            .where(Event.id == event_id)
+    )
     session.commit()
-    if res.rowcount > 0:
+    # Check whether a row has actually been deleted
+    if result.rowcount > 0:
         return "Event deleted successfully"
     else:
-        raise HTTPException(status_code=404, detail="Event not found")
+        raise HTTPException(
+            status_code=404,
+            detail="Event not found"
+        )
 
 @router.post("/events/{event_id}/register")
-async def add_registration(session: SessionDep, data: UserPublic, event_id: int) -> str:
+async def add_registration(
+        session: SessionDep,
+        user: UserPublic,
+        event_id: int
+) -> str:
     try:
-        user = User.model_validate(data)  # sfruttiamo il fatto che usercreate e userpublic coincidono
+        # Create registration
         session.add(
-            Registration(username=user.username, event_id=event_id)
+            Registration(
+                username=user.username,
+                event_id=event_id
+            )
         )
         session.commit()
-    except ValidationError:
-        raise HTTPException(status_code=400, detail="Invalid payload format")
-    except Exception as e:
-        raise HTTPException(status_code=404, detail="User not found")
-    else:
-        return "Registration added successfully"
+    except IntegrityError:
+        # Unsatisfied foreign key constraint
+        raise HTTPException(
+            status_code=404,
+            detail="User or event not found"
+        )
+    return "Registration added successfully"
 
 @router.get("/registrations")
-async def get_all_registrations(session: SessionDep) -> list[Registration]:
+async def get_all_registrations(
+        session: SessionDep
+) -> list[Registration]:
     return session.exec(select(Registration)).all()
 
 @router.delete("/registrations")
-async def delete_event_by_id(session: SessionDep, username: str, event_id: str) -> str:
-    res = session.exec(delete(Registration).where(Registration.username == username, Registration.event_id == event_id))
+async def delete_event_by_id(
+        session: SessionDep,
+        username: str,
+        event_id: int
+) -> str:
+    result = session.exec(
+        delete(Registration)
+            .where(
+                Registration.username == username,
+                Registration.event_id == event_id
+            )
+    )
     session.commit()
-    if res.rowcount > 0:
+    # Check whether a row has actually been deleted
+    if result.rowcount > 0:
         return "Registrations deleted successfully"
     else:
-        raise HTTPException(status_code=404, detail="Registration not found")
+        raise HTTPException(
+            status_code=404,
+            detail="Registration not found"
+        )
