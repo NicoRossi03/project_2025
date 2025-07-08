@@ -13,11 +13,42 @@ from app.config import config
 from app.data.db import get_session
 from app.models.event import Event, EventCreate
 from app.models.registration import Registration
-from app.models.user import User, UserPublic
+from app.models.user import User, UserPublic, UserCreate
 
 router = APIRouter()
 templates = Jinja2Templates(directory=config.root_dir / "templates")
 SessionDep = Annotated[Session, Depends(get_session)]
+@router.get("/users")
+async def get_all_users(session: SessionDep):
+    return session.exec(select(User)).all()
+
+@router.post("/users")
+async def add_user(session: SessionDep, data: UserCreate):
+    session.add(User.model_validate(data))
+    session.commit()
+    return {"ok": True, "message": "User added"}
+
+@router.get("/users/{username}")
+async def get_user_by_username(session: SessionDep, username: str):
+    user = session.get(User, username)
+    if user is None:
+        raise HTTPException(status_code=404, detail={"ok": False})
+    else:
+        return user
+@router.delete("/users")
+async def delete_all_users(session: SessionDep):
+    session.exec(delete(User))
+    session.commit()
+    return {"ok": True, "message": "Users deleted"}
+
+@router.delete("/users/{username}")
+async def delete_user_by_username(session: SessionDep, username: str):
+    res = session.exec(delete(User).where(User.username == username))
+    session.commit()
+    if res.rowcount > 0:
+        return {"ok": True, "message": "User deleted"}
+    else:
+        raise HTTPException(status_code=404, detail={"ok": False, "message": "User not found"})
 
 @router.get("/events")
 async def get_all_events(session: SessionDep):
